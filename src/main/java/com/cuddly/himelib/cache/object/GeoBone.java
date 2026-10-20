@@ -307,6 +307,28 @@ public class GeoBone {
 		return this.cubes;
 	}
 
+	private int cubeVertexCount = -1;
+
+	/** HimeLib: how many vertices its cubes draw, counted once (the cube batch lays them out by it). */
+	public int getCubeVertexCount() {
+		int n = this.cubeVertexCount;
+
+		if (n < 0) {
+			n = 0;
+
+			for (GeoCube cube : this.cubes) {
+				for (GeoQuad quad : cube.quads()) {
+					if (quad != null)
+						n += quad.vertices().length;
+				}
+			}
+
+			this.cubeVertexCount = n;
+		}
+
+		return n;
+	}
+
 	public boolean isTrackingMatrices() {
 		return trackingMatrices;
 	}

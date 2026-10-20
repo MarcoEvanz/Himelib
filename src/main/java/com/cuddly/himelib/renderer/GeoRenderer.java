@@ -274,6 +274,24 @@ public interface GeoRenderer<T extends GeoAnimatable> {
 	}
 
 	/**
+	 * HimeLib: the cube batch this renderer is drawing through now, or null when it draws its cubes itself
+	 * (see {@link com.cuddly.himelib.renderer.batch.CubeBatch}).
+	 */
+	@Nullable
+	default com.cuddly.himelib.renderer.batch.CubeBatch cubeBatch() {
+		return null;
+	}
+
+	/**
+	 * HimeLib: while drawing through a cube batch, whether {@code bone}'s cubes go into it; false draws them here as
+	 * ever (a bone the renderer bends vertex by vertex in {@link #createVerticesOfQuad}, say). Cutout and opaque
+	 * buffers do not mind the order; the batched ones are handed over at the batch's flush.
+	 */
+	default boolean batchBone(GeoBone bone) {
+		return true;
+	}
+
+	/**
 	 * Renders the {@link GeoCube GeoCubes} associated with a given {@link GeoBone}
 	 */
 	default void renderCubesOfBone(PoseStack poseStack, GeoBone bone, VertexConsumer buffer, int packedLight,
@@ -281,10 +299,17 @@ public interface GeoRenderer<T extends GeoAnimatable> {
 		if (bone.isHidden())
 			return;
 
+		// HimeLib: a renderer drawing through a cube batch only notes the bone here (worked out many threads at once)
+		com.cuddly.himelib.renderer.batch.CubeBatch batch = cubeBatch();
+
+		if (batch != null && batchBone(bone)) {
+			batch.add(bone, poseStack.last(), buffer, packedLight, packedOverlay, colour);
+			return;
+		}
+
+		// HimeLib: renderCube leaves the stack as it found it (its cube's turn is worked out apart), so no push per cube
 		for (GeoCube cube : bone.getCubes()) {
-			poseStack.pushPose();
 			renderCube(poseStack, cube, buffer, packedLight, packedOverlay, colour);
-			poseStack.popPose();
 		}
 	}
 
@@ -310,19 +335,23 @@ public interface GeoRenderer<T extends GeoAnimatable> {
 	 */
 	default void renderCube(PoseStack poseStack, GeoCube cube, VertexConsumer buffer, int packedLight,
 							int packedOverlay, int colour) {
-		RenderUtil.translateToPivotPoint(poseStack, cube);
-		RenderUtil.rotateMatrixAroundCube(poseStack, cube);
-		RenderUtil.translateAwayFromPivotPoint(poseStack, cube);
+		// HimeLib: the cube's turn about its pivot, baked once (GeoCube.localPose), multiplied in - the pose stack
+		// is not touched (it was three quaternion turns of both matrices, per cube, per frame)
+		PoseStack.Pose last = poseStack.last();
+		Matrix4f poseState = new Matrix4f(last.pose());
+		Matrix3f normalisedPoseState = last.normal();
 
-		Matrix3f normalisedPoseState = poseStack.last().normal();
-		Matrix4f poseState = new Matrix4f(poseStack.last().pose());
+		if (cube.isRotated()) {
+			poseState.mul(cube.localPose());
+			normalisedPoseState = new Matrix3f(normalisedPoseState).mul(cube.localNormal());
+		}
 
 		for (GeoQuad quad : cube.quads()) {
 			if (quad == null)
 				continue;
 
-			Vector3f normal = normalisedPoseState.transform(new Vector3f(quad.normal()));
-			
+			Vector3f normal = normalisedPoseState.transform(quad.normal(), new Vector3f());
+
 			RenderUtil.fixInvertedFlatCube(cube, normal);
 			createVerticesOfQuad(quad, poseState, normal, buffer, packedLight, packedOverlay, colour);
 		}
@@ -337,15 +366,18 @@ public interface GeoRenderer<T extends GeoAnimatable> {
 		Vector3f[] vertexNormals = quad.vertexNormals();
 		Matrix3f normalState = vertexNormals == null ? null : new Matrix3f(poseState);
 		GeoVertex[] vertices = quad.vertices();
+		// HimeLib: one vector reused for the quad's vertices (and one for their normals), not one made per vertex
+		Vector4f vector4f = new Vector4f();
+		Vector3f smooth = normalState == null ? null : new Vector3f();
 
 		for (int i = 0; i < vertices.length; i++) {
 			GeoVertex vertex = vertices[i];
 			Vector3f position = vertex.position();
-			Vector4f vector4f = poseState.transform(new Vector4f(position.x(), position.y(), position.z(), 1.0f));
+			poseState.transform(position.x(), position.y(), position.z(), 1.0f, vector4f);
 			Vector3f n = normal;
 
 			if (normalState != null && i < vertexNormals.length && vertexNormals[i] != null)
-				n = normalState.transform(new Vector3f(vertexNormals[i])).normalize();
+				n = normalState.transform(vertexNormals[i], smooth).normalize();
 
 			buffer.addVertex(vector4f.x(), vector4f.y(), vector4f.z(), colour, vertex.texU(),
 					vertex.texV(), packedOverlay, packedLight, n.x(), n.y(), n.z());

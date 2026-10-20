@@ -54,11 +54,9 @@ public final class RenderUtil {
 	}
 
 	public static void rotateMatrixAroundCube(PoseStack poseStack, GeoCube cube) {
-		Vec3 rotation = cube.rotation();
-
-		poseStack.mulPose(new Quaternionf().rotationXYZ(0, 0, (float)rotation.z()));
-		poseStack.mulPose(new Quaternionf().rotationXYZ(0, (float)rotation.y(), 0));
-		poseStack.mulPose(new Quaternionf().rotationXYZ((float)rotation.x(), 0, 0));
+		// HimeLib: the three turns (Z, Y, X) as the one quaternion the cube baked; nothing for a cube that does not turn
+		if (cube.isRotated())
+			poseStack.mulPose(new Quaternionf(cube.turn()));
 	}
 
 	public static void scaleMatrixForBone(PoseStack poseStack, GeoBone bone) {

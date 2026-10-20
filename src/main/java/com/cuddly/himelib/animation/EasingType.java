@@ -84,6 +84,11 @@ public interface EasingType {
 		if (animationPoint.currentTick() >= animationPoint.transitionLength())
 			return (float)animationPoint.animationEndValue();
 
+		// HimeLib: the plain line, most keyframes' - no transformer built for it (one was, every keyframe of every
+		// bone of every model, every frame)
+		if (this == LINEAR)
+			return Mth.lerp(lerpValue, animationPoint.animationStartValue(), animationPoint.animationEndValue());
+
 		return Mth.lerp(buildTransformer(easingValue).apply(lerpValue), animationPoint.animationStartValue(), animationPoint.animationEndValue());
 	}
 

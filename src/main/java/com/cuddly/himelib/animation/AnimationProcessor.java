@@ -19,7 +19,9 @@ import java.util.Queue;
 import net.minecraft.util.Mth;
 
 public class AnimationProcessor<T extends GeoAnimatable> {
-	private final Map<String, GeoBone> bones = new Object2ObjectOpenHashMap<>();
+	private Map<String, GeoBone> bones = new Object2ObjectOpenHashMap<>();
+	/** HimeLib: each model's bones as they were registered, kept (one processor draws many models in turn). */
+	private final Map<BakedGeoModel, Map<String, GeoBone>> registeredModels = new java.util.IdentityHashMap<>();
 	private final GeoModel<T> model;
 
 	public boolean reloadAnimations = false;
@@ -286,11 +288,25 @@ public class AnimationProcessor<T extends GeoAnimatable> {
 	 * Should be called whenever switching models to render/animate
 	 */
 	public void setActiveModel(BakedGeoModel model) {
-		this.bones.clear();
+		// HimeLib: a model's bones registered once and kept - girls of other models drawn in turn switched the
+		// processor back and forth, every bone of the model registered again each time
+		Map<String, GeoBone> registered = this.registeredModels.get(model);
+
+		if (registered != null) {
+			this.bones = registered;
+			return;
+		}
+
+		if (this.registeredModels.size() >= 64)
+			this.registeredModels.clear();
+
+		this.bones = new Object2ObjectOpenHashMap<>();
 
 		for (GeoBone bone : model.topLevelBones()) {
 			registerGeoBone(bone);
 		}
+
+		this.registeredModels.put(model, this.bones);
 	}
 
 	/**

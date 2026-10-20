@@ -1,31 +1,64 @@
 package com.cuddly.himelib.cache.object;
 
 import com.cuddly.himelib.loading.json.raw.ModelProperties;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * Baked model object for Geckolib models
+ * <p>
+ * HimeLib: a bone found by name from a table made once (the first in tree order, as the search found it), not by a
+ * walk of the whole tree per ask - renderers ask for a few bones by name every frame, and a girl has some 400.
  */
-public record BakedGeoModel(List<GeoBone> topLevelBones, ModelProperties properties) {
+public final class BakedGeoModel {
+	private final List<GeoBone> topLevelBones;
+	private final ModelProperties properties;
+	private volatile Map<String, GeoBone> byName;
+
+	public BakedGeoModel(List<GeoBone> topLevelBones, ModelProperties properties) {
+		this.topLevelBones = topLevelBones;
+		this.properties = properties;
+	}
+
+	public List<GeoBone> topLevelBones() {
+		return this.topLevelBones;
+	}
+
+	public ModelProperties properties() {
+		return this.properties;
+	}
+
 	/**
 	 * Gets a bone from this model by name
-	 * <p>
-	 * Generally not a very efficient method, should be avoided where possible
 	 *
 	 * @param name The name of the bone
 	 * @return An {@link Optional} containing the {@link GeoBone} if one matches, otherwise an empty Optional
 	 */
 	public Optional<GeoBone> getBone(String name) {
-		for (GeoBone bone : this.topLevelBones) {
-			GeoBone childBone = searchForChildBone(bone, name);
+		Map<String, GeoBone> bones = this.byName;
 
-			if (childBone != null)
-				return Optional.of(childBone);
+		if (bones == null) {
+			bones = new Object2ObjectOpenHashMap<>();
+
+			for (GeoBone bone : this.topLevelBones) {
+				index(bone, bones);
+			}
+
+			this.byName = bones;
 		}
 
-		return Optional.empty();
+		return Optional.ofNullable(bones.get(name));
+	}
+
+	private static void index(GeoBone bone, Map<String, GeoBone> bones) {
+		bones.putIfAbsent(bone.getName(), bone);
+
+		for (GeoBone child : bone.getChildBones()) {
+			index(child, bones);
+		}
 	}
 
 	/**

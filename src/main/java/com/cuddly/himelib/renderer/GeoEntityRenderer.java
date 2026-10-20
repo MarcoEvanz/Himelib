@@ -196,9 +196,38 @@ public class GeoEntityRenderer<T extends Entity & GeoAnimatable> extends EntityR
 	public void render(T entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
 		this.animatable = entity;
 
-		defaultRender(poseStack, entity, bufferSource, null, null, entityYaw, partialTick, packedLight);
+		// HimeLib: her cubes drawn many threads at once, when this renderer asks for it (CubeBatch)
+		if (batchCubes(entity) && this.cubeBatch.begin(null)) {
+			try {
+				defaultRender(poseStack, entity, this.cubeBatch.wrap(bufferSource), null, null, entityYaw, partialTick, packedLight);
+			}
+			finally {
+				this.cubeBatch.end();
+			}
+		}
+		else {
+			defaultRender(poseStack, entity, bufferSource, null, null, entityYaw, partialTick, packedLight);
+		}
 
 		this.animatable = null;
+	}
+
+	/** HimeLib: the batch this renderer's cubes are drawn through, when {@link #batchCubes} has it. */
+	protected final com.cuddly.himelib.renderer.batch.CubeBatch cubeBatch = new com.cuddly.himelib.renderer.batch.CubeBatch();
+
+	/**
+	 * HimeLib: whether {@code entity}'s cubes are drawn through the {@link com.cuddly.himelib.renderer.batch.CubeBatch}
+	 * (worked out many threads at once). Off unless a renderer turns it on: one that draws a cube its own way
+	 * ({@link #renderCube} or {@link #createVerticesOfQuad} doing more than the default) must leave it off for that entity.
+	 */
+	public boolean batchCubes(T entity) {
+		return false;
+	}
+
+	@Nullable
+	@Override
+	public com.cuddly.himelib.renderer.batch.CubeBatch cubeBatch() {
+		return this.cubeBatch.isActive() ? this.cubeBatch : null;
 	}
 
 	/**
