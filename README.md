@@ -10,6 +10,9 @@ GeckoLib is MIT licensed, by Gecko, Eliot, AzureDoom, DerToaster, Tslat and Witi
 
 - Keyframes are read sorted by time (Blockbench can write integer-like times first).
 - `GeoBone.setHiddenWithoutHidingChildren`: hides a bone's own cubes, not its children.
+- Runtime assets: `RuntimeLoader` bakes models and animations from JSON in memory, and
+  `GeckoLibCache.setRuntimeAssets` puts them in beside the resource packs' (looked up first, kept through a
+  resource reload, swapped whole). Hime brings its girls this way, from its own packs.
 
 ## Build
 

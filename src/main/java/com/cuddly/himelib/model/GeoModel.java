@@ -106,7 +106,7 @@ public abstract class GeoModel<T extends GeoAnimatable> {
 	 * Get the baked geo model object used for rendering from the given resource path
 	 */
 	public BakedGeoModel getBakedModel(ResourceLocation location) {
-		BakedGeoModel model = GeckoLibCache.getBakedModels().get(location);
+		BakedGeoModel model = GeckoLibCache.getModel(location);
 
 		if (model == null) {
 			if (!location.getPath().contains("geo/"))
@@ -143,14 +143,14 @@ public abstract class GeoModel<T extends GeoAnimatable> {
 	@Nullable
 	public Animation getAnimation(T animatable, String name) {
 		ResourceLocation location = getAnimationResource(animatable);
-		BakedAnimations bakedAnimations = GeckoLibCache.getBakedAnimations().get(location);
+		BakedAnimations bakedAnimations = GeckoLibCache.getAnimations(location);
 		Animation animation = bakedAnimations != null ? bakedAnimations.getAnimation(name) : null;
 
 		if (animation != null)
 			return animation;
 
 		for (ResourceLocation fallbackLocation : getAnimationResourceFallbacks(animatable)) {
-			bakedAnimations = GeckoLibCache.getBakedAnimations().get(location = fallbackLocation);
+			bakedAnimations = GeckoLibCache.getAnimations(location = fallbackLocation);
 			animation = bakedAnimations != null ? bakedAnimations.getAnimation(name) : null;
 
 			if (animation != null)

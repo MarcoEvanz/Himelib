@@ -14,6 +14,7 @@ import com.cuddly.himelib.loading.object.GeometryTree;
 import com.cuddly.himelib.model.GeoModel;
 import com.cuddly.himelib.util.CompoundException;
 
+import org.jetbrains.annotations.Nullable;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
@@ -47,6 +48,44 @@ public final class GeckoLibCache {
 
 	public static Map<ResourceLocation, BakedGeoModel> getBakedModels() {
 		return MODELS;
+	}
+
+	/**
+	 * HimeLib: models and animations a mod puts in at runtime, made in memory rather than read from the resource
+	 * packs (see {@link com.cuddly.himelib.loading.RuntimeLoader}). They are looked up before the reloaded ones,
+	 * outlast a resource reload, and are swapped whole, so a reader on another thread sees one set or the other.
+	 */
+	private static volatile Map<ResourceLocation, BakedGeoModel> RUNTIME_MODELS = Collections.emptyMap();
+	private static volatile Map<ResourceLocation, BakedAnimations> RUNTIME_ANIMATIONS = Collections.emptyMap();
+
+	/** HimeLib: the runtime models and animations from now on, in place of the ones there were. */
+	public static void setRuntimeAssets(Map<ResourceLocation, BakedGeoModel> models, Map<ResourceLocation, BakedAnimations> animations) {
+		RUNTIME_MODELS = Map.copyOf(models);
+		RUNTIME_ANIMATIONS = Map.copyOf(animations);
+	}
+
+	/** HimeLib: the model at {@code location}: a runtime one, else the resource packs' one; null when neither has it. */
+	@Nullable
+	public static BakedGeoModel getModel(ResourceLocation location) {
+		BakedGeoModel model = RUNTIME_MODELS.get(location);
+
+		return model != null ? model : MODELS.get(location);
+	}
+
+	/** HimeLib: the animations file at {@code location}: a runtime one, else the resource packs' one; null when neither has it. */
+	@Nullable
+	public static BakedAnimations getAnimations(ResourceLocation location) {
+		BakedAnimations animations = RUNTIME_ANIMATIONS.get(location);
+
+		return animations != null ? animations : ANIMATIONS.get(location);
+	}
+
+	/** HimeLib: every animations file there is, runtime ones included. */
+	public static Iterable<BakedAnimations> allAnimations() {
+		java.util.List<BakedAnimations> all = new java.util.ArrayList<>(RUNTIME_ANIMATIONS.values());
+		all.addAll(ANIMATIONS.values());
+
+		return all;
 	}
 
 	public static void registerReloadListener() {
