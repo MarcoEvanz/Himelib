@@ -55,6 +55,13 @@ public class AnimationController<T extends GeoAnimatable> {
 	protected boolean handlingTriggeredAnimations = false;
 
 	protected double transitionLength;
+	/**
+	 * Whether the animations of one {@link RawAnimation} blend into each other ({@link #transitionLength} ticks
+	 * from where one ended to where the next begins) - GeckoLib's way, and off by default here: a chain is made
+	 * to follow on (an intro into its loop, a cast into the wait), and the blend between two poses that already
+	 * meet only stood the body still that long.
+	 */
+	protected boolean blendChained = false;
 	protected RawAnimation currentRawAnimation;
 	protected AnimationProcessor.QueuedAnimation currentAnimation;
 	protected State animationState = State.STOPPED;
@@ -315,6 +322,16 @@ public class AnimationController<T extends GeoAnimatable> {
 	 */
 	public AnimationController<T> transitionLength(int ticks) {
 		this.transitionLength = ticks;
+
+		return this;
+	}
+
+	/**
+	 * Blend the animations of one {@link RawAnimation} into each other over the transition time, as GeckoLib does
+	 * (off by default: each follows straight on from the last)
+	 */
+	public AnimationController<T> blendChained(boolean blend) {
+		this.blendChained = blend;
 
 		return this;
 	}
@@ -590,7 +607,8 @@ public class AnimationController<T extends GeoAnimatable> {
 					return;
 				}
 				else {
-					this.animationState = State.TRANSITIONING;
+					// the next of the chain: straight on from its start, or blended into (blendChained)
+					this.animationState = this.blendChained ? State.TRANSITIONING : State.RUNNING;
 					this.shouldResetTick = true;
 					adjustedTick = adjustTick(seekTime);
 					this.currentAnimation = this.animationQueue.poll();
@@ -667,7 +685,8 @@ public class AnimationController<T extends GeoAnimatable> {
 		for (CustomInstructionKeyframeData keyframeData : this.currentAnimation.animation().keyFrames().customInstructions()) {
 			if (adjustedTick >= keyframeData.getStartTick() && this.executedKeyFrames.add(keyframeData)) {
 				if (this.customKeyframeHandler == null) {
-					GeckoLibConstants.LOGGER.log(Level.WARN, "Custom Instruction Keyframe found for " + this.animatable.getClass().getSimpleName() + " -> " + getName() + ", but no keyframe handler registered");
+					// with no handler, an instruction keyframe is a mark in the file (when an action happens -
+					// read from the file itself), not an order to the controller: let by unremarked
 
 					break;
 				}
