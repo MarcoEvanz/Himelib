@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "package": "com.cuddly.himelib.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "himelib.refmap.json",
+  "minVersion": "0.8",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "mixins": [
+    "common.AbstractContainerMenuMixin",
+    "common.ItemStackMixin",
+    "common.LivingEntityMixin"
+  ],
+  "client": [
+    "client.BlockEntityWithoutLevelRendererMixin",
+    "client.HumanoidArmorLayerMixin",
+    "client.LevelRendererMixin",
+    "client.TextureManagerMixin"
+  ]
+}

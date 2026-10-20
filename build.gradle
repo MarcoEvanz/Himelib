@@ -1,0 +1,69 @@
+plugins {
+    id 'fabric-loom' version '1.15.5'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = "${archives_base_name}"
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/himelib.accesswidener")
+    mixin {
+        defaultRefmapName = "himelib.refmap.json"
+    }
+}
+
+repositories {
+    maven {
+        name = 'ParchmentMC'
+        url = 'https://maven.parchmentmc.org'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.layered() {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-${project.parchment_minecraft_version}:${project.parchment_mappings_version}@zip")
+    }
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = "UTF-8"
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from("LICENSE_GeckoLib") {
+        rename { "${it}_${base.archivesName.get()}" }
+    }
+}
+
+// ./gradlew publishToMavenLocal: Hime takes it from there (com.cuddly:himelib)
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+}
